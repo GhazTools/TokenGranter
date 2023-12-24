@@ -31,6 +31,7 @@ h11==0.14.0
 httplib2==0.22.0
 idna==3.6
 iniconfig==2.0.0
+logging==0.4.9.6
 msgpack==1.0.7
 multidict==6.0.4
 mypy-extensions==1.0.0
