@@ -10,15 +10,16 @@ Edit Log:
 
 # STANDARD LIBRARY IMPORTS
 from typing import Final
+
 ...
 
 # THIRD PARTY LIBRARY IMPORTS
 from fastapi import FastAPI
+
 ...
 
 # LOCAL LIBRARY IMPORTS
 from utils.startup import startupTasks
-from utils.start import setupLogger
 from utils.logging_setup import setupLogger
 from routers.token import ROUTER as token_router
 
@@ -30,3 +31,5 @@ app = FastAPI(dependencies=[])
 setupLogger(app)
 
 app.include_router(token_router)
+
+app.logger.info("Started token granter service.")

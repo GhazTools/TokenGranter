@@ -10,15 +10,18 @@ Edit Log:
 
 # STANDARD LIBRARY IMPORTS
 from os import environ
+
 ...
 
 # THIRD PARTY LIBRARY IMPORTS
 import logging.config
 from fastapi import FastAPI
+
 ...
 
 # LOCAL LIBRARY IMPORTS
 ...
+
 
 def setupLogger(app: FastAPI) -> None:
     logging.config.fileConfig(environ["LOGGING_CONFIG_PATH"])
@@ -32,6 +35,5 @@ def setupLogger(app: FastAPI) -> None:
             %(levelname)-8s | %(filename)s-%(funcName)s-%(lineno)04d | \
             %(message)s"
     )
-    
+
     handler.setFormatter(formatter)
-    

@@ -13,6 +13,7 @@ Edit Log:
 
 # THIRD PARTY LIBRARY IMPORTS
 from pydantic import BaseModel
+
 ...
 
 # LOCAL LIBRARY IMPORTS
@@ -20,5 +21,5 @@ from pydantic import BaseModel
 
 
 class TokenParam(BaseModel):
-    username: str 
+    username: str
     password: str

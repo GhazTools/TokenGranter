@@ -13,12 +13,12 @@ Edit Log:
 
 # THIRD PARTY LIBRARY IMPORTS
 from dotenv import load_dotenv
+
 ...
 
 # LOCAL LIBRARY IMPORTS
 ...
 
 
-function startupTasks() -> None: 
+def startupTasks() -> None:
     load_dotenv()
-    

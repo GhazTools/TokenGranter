@@ -15,7 +15,13 @@ from os import environ
 ...
 
 # THIRD PARTY LIBRARY IMPORTS
-from firebase_admin import credentials, firestore, initialize_app, _DEFAULT_APP_NAME, _apps
+from firebase_admin import (
+    credentials,
+    firestore,
+    initialize_app,
+    _DEFAULT_APP_NAME,
+    _apps,
+)
 from hashlib import sha256
 from uuid import uuid4
 
@@ -32,6 +38,7 @@ if not _DEFAULT_APP_NAME in _apps:
     initialize_app(CREDENTIALS)
 
 Token: TypeAlias = str
+
 
 class TokenHandler:
     # TODO: Create app config file
@@ -114,5 +121,5 @@ class TokenHandler:
 
     # PRIVATE METHODS END HERE
 
+
 token_handler: TokenHandler = TokenHandler()
-    

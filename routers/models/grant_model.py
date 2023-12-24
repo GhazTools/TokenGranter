@@ -13,12 +13,14 @@ Edit Log:
 
 # THIRD PARTY LIBRARY IMPORTS
 from pydantic import BaseModel
+
 ...
 
 # LOCAL LIBRARY IMPORTS
 ...
 
+
 class GrantParam(BaseModel):
-    username: str 
-    password: str 
+    username: str
+    password: str
     temporary: bool | None = None
