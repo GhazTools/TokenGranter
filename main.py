@@ -28,8 +28,8 @@ from routers.token import ROUTER as token_router
 startupTasks()
 
 app = FastAPI(dependencies=[])
-setupLogger(app)
+# setupLogger(app)
 
 app.include_router(token_router)
 
-app.logger.info("Started token granter service.")
+# app.logger.info("Started token granter service.")

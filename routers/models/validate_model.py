@@ -22,4 +22,4 @@ from pydantic import BaseModel
 
 class TokenParam(BaseModel):
     username: str
-    password: str
+    token: str

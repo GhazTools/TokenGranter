@@ -10,6 +10,7 @@ Edit Log:
 
 # STANDARD LIBRARY IMPORTS
 from typing import Final, TypeAlias
+from datetime import datetime, timedelta
 from os import environ
 
 ...
@@ -51,7 +52,7 @@ class TokenHandler:
     # PROPERTIES END HERE
 
     # PUBLIC METHODS START HERE
-    def create_and_register_tokeN(
+    def create_and_register_token(
         self, username: str, password: str, temporary=True
     ) -> Token:
         if not self._validate_user(username, password):
@@ -65,12 +66,12 @@ class TokenHandler:
 
         token_metadata: Final[TokenMetadata] = self.tokens[token]
 
-        if token_metadata.token_owner == username:
+        if not token_metadata["token_owner"] == username:
             return {"ErrorCode": 1, "ErrorString": "Invalid Token"}
 
         current_time: Final[datetime] = datetime.now()
 
-        if current_time > token_metadata.expires_on:
+        if current_time > token_metadata["expires_on"]:
             del self.tokens[token]
 
             return {"ErrorCode": 2, "ErrorString": "Token Expired"}
