@@ -9,10 +9,9 @@ Edit Log:
 """
 
 # STANDARD LIBRARY IMPORTS
-from datetime import datetime, timedelta
 from hashlib import sha256
 from os import environ
-from typing import Dict, Final, TypeAlias
+from typing import TypeAlias
 from uuid import uuid4
 
 # THIRD PARTY LIBRARY IMPORTS
@@ -20,6 +19,8 @@ from firebase_admin import firestore
 
 # LOCAL LIBRARY IMPORTS
 from utils.token_metadata import TokenMetadata
+from utils.logger import AppLogger
+from utils.redis_client import RedisClient, KeyExpiredError, KeyDoesNotExistError
 
 Token: TypeAlias = str
 
@@ -29,11 +30,8 @@ class TokenHandler:
     TokenHandler class to handle token creation and validation
     """
 
-    # TODO: Create app config file
-    token_duration: Final[int] = 3600
-
     def __init__(self) -> None:
-        self.tokens: Dict[Token, TokenMetadata] = {}
+        self._redis_client: RedisClient = RedisClient()
 
     # PROPERTIES START HERE
     # PROPERTIES END HERE
@@ -42,57 +40,59 @@ class TokenHandler:
     def create_and_register_token(
         self, username: str, password: str, temporary=True
     ) -> Token:
+        """
+        Create and register a token for the user
+        """
         if not self._validate_user(username, password):
             raise ValueError("Invalid username or password")
 
-        return self._generate_and_register_token(username)
+        return self._generate_and_register_token(username, temporary)
 
     def validate_token(self, username: str, token: Token) -> dict:
-        if not token in self.tokens:
+        """
+        Validate the token for the user
+        """
+
+        token_key = self._get_token_key(username)
+
+        try:
+            token_metadata: TokenMetadata = self._redis_client.get(token_key)
+
+            if token_metadata["token"] != token:
+                return {"ErrorCode": 1, "ErrorMessage": "Invalid Token"}
+        except KeyDoesNotExistError:
             return {"ErrorCode": 1, "ErrorMessage": "Invalid Token"}
-
-        token_metadata: Final[TokenMetadata] = self.tokens[token]
-
-        if not token_metadata["token_owner"] == username:
-            return {"ErrorCode": 1, "ErrorString": "Invalid Token"}
-
-        current_time: Final[datetime] = datetime.now()
-
-        if current_time > token_metadata["expires_on"]:
-            del self.tokens[token]
-
+        except KeyExpiredError:
             return {"ErrorCode": 2, "ErrorString": "Token Expired"}
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().error("ErrorWhileValidatingToken", e)
+            return {"ErrorCode": 3, "ErrorString": "Server Uncaught Exception"}
 
         return {"ErrorCode": 0, "ErrorString": "Successfully Validated"}
 
     # PUBLIC METHODS END HERE
 
     # PRIVATE METHODS START HERE
-    def _generate_and_register_token(self, username: str) -> Token:
-        token: Token = None
-        valid_token: bool = False
+    def _generate_and_register_token(self, username: str, temporary: bool) -> Token:
+        token: Token = self._generate_token()
 
-        # Generate till we obtain a unique token
-        while not valid_token:
-            uuid: int = uuid4()
-            token: Token = sha256(str(uuid).encode("UTF-8")).hexdigest()
+        token_key: str = self._get_token_key(username)
 
-            if token not in self.tokens:
-                valid_token = True
-
-        created_on: datetime = datetime.now()
-        expires_on: datetime = created_on + timedelta(seconds=self.token_duration)
+        try:
+            token_metadata: TokenMetadata = self._redis_client.get(token_key)
+            return token_metadata["token"]
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().info(
+                "No valid registered key for the user %s. Generating new key with exception:  %s",
+                username,
+                e,
+            )
 
         metadata: TokenMetadata = TokenMetadata(
-            {
-                "token_owner": username,
-                "created_on": created_on,
-                "expires_on": expires_on,
-            }
+            {"token_owner": username, "token": token}
         )
 
-        # Register token
-        self.tokens[token] = metadata
+        self._redis_client.save(token_key, metadata, 30 if temporary else None)
         return token
 
     def _validate_user(self, username: str, password: str) -> bool:
@@ -106,6 +106,15 @@ class TokenHandler:
             return True
 
         return False
+
+    def _generate_token(self) -> Token:
+        uuid: int = uuid4()
+        token: Token = sha256(str(uuid).encode("UTF-8")).hexdigest()
+
+        return token
+
+    def _get_token_key(self, username: str) -> str:
+        return f"token_granter_token_{username}"
 
     # PRIVATE METHODS END HERE
 
