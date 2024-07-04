@@ -9,39 +9,26 @@ Edit Log:
 """
 
 # STANDARD LIBRARY IMPORTS
-from typing import Final, TypeAlias
 from datetime import datetime, timedelta
-from os import environ
-
-...
-
-# THIRD PARTY LIBRARY IMPORTS
-from firebase_admin import (
-    credentials,
-    firestore,
-    initialize_app,
-    _DEFAULT_APP_NAME,
-    _apps,
-)
 from hashlib import sha256
+from os import environ
+from typing import Dict, Final, TypeAlias
 from uuid import uuid4
 
-...
+# THIRD PARTY LIBRARY IMPORTS
+from firebase_admin import firestore
 
 # LOCAL LIBRARY IMPORTS
 from utils.token_metadata import TokenMetadata
-
-...
-
-# Initialize firebase before continuing if not created already
-if not _DEFAULT_APP_NAME in _apps:
-    CREDENTIALS = credentials.Certificate(environ["FIRESTORE_TOKEN"])
-    initialize_app(CREDENTIALS)
 
 Token: TypeAlias = str
 
 
 class TokenHandler:
+    """
+    TokenHandler class to handle token creation and validation
+    """
+
     # TODO: Create app config file
     token_duration: Final[int] = 3600
 

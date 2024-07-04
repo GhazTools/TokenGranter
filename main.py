@@ -13,13 +13,11 @@ Edit Log:
 # THIRD PARTY LIBRARY IMPORTS
 from fastapi import FastAPI
 
-
 # LOCAL LIBRARY IMPORTS
-from utils.startup import startupTasks
+from utils.startup import startup_tasks
 from routers.token import ROUTER as token_router
 
-
-startupTasks()
+startup_tasks()
 
 app = FastAPI(dependencies=[])
 app.include_router(token_router)

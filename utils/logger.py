@@ -92,10 +92,3 @@ class AppLogger:
 
         AppLogger.logging_setup()
         return cast(Logger, AppLogger.__logger)
-
-    @staticmethod
-    def log(log_string: str, log_level: LoggingLevel = LoggingLevel.INFO) -> None:
-        """
-        A method used to log a message
-        """
-        AppLogger.get_logger().log(level=log_level.value, msg=log_string)

@@ -12,16 +12,16 @@ Edit Log:
 from datetime import datetime
 from typing import TypedDict
 
-...
-
 # THIRD PARTY LIBRARY IMPORTS
-...
 
 # LOCAL LIBRARY IMPORTS
-...
 
 
 class TokenMetadata(TypedDict):
+    """
+    A class to represent the metadata that a token is associated with
+    """
+
     token_owner: str  # Token owner name, firebase username
     created_on: datetime  # Data the token was created
     expires_on: datetime  # Date the token expires

@@ -10,22 +10,17 @@ Edit Log:
 
 # STANDARD LIBRARY IMPORTS
 from typing import Final
-from json import dumps
-...
 
 # THIRD PARTY LIBRARY IMPORTS
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
-from pydantic import BaseModel
-...
 
 # LOCAL LIBRARY IMPORTS
 from utils.token_handler import token_handler
 from routers.models.grant_model import GrantParam
 from routers.models.validate_model import TokenParam
-...
 
 ROUTER: Final[APIRouter] = APIRouter(
     prefix="/token",
