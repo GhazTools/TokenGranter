@@ -32,11 +32,19 @@ ROUTER: Final[APIRouter] = APIRouter(
 
 @ROUTER.get("/")
 async def home():
+    """
+    Function to check if the app is running.
+    """
+
     return {"status": "App is running"}
 
 
 @ROUTER.post("/grant")
 async def grant(paramters: GrantParam):
+    """
+    Function to grant a token to the user
+    """
+
     return JSONResponse(
         content=jsonable_encoder(
             {
@@ -51,6 +59,10 @@ async def grant(paramters: GrantParam):
 
 @ROUTER.post("/validate")
 async def validate(parameters: TokenParam):
+    """
+    Function to validate the token for the user
+    """
+
     return JSONResponse(
         content=jsonable_encoder(
             token_handler.validate_token(parameters.username, parameters.token)
