@@ -77,7 +77,7 @@ class TokenHandler:
             uuid: int = uuid4()
             token: Token = sha256(str(uuid).encode("UTF-8")).hexdigest()
 
-            if not token in self.tokens.keys():
+            if token not in self.tokens:
                 valid_token = True
 
         created_on: datetime = datetime.now()
