@@ -9,44 +9,29 @@ Edit Log:
 """
 
 # STANDARD LIBRARY IMPORTS
-from typing import Final, TypeAlias
-from datetime import datetime, timedelta
-from os import environ
-
-...
-
-# THIRD PARTY LIBRARY IMPORTS
-from firebase_admin import (
-    credentials,
-    firestore,
-    initialize_app,
-    _DEFAULT_APP_NAME,
-    _apps,
-)
 from hashlib import sha256
+from typing import TypeAlias
 from uuid import uuid4
 
-...
+# THIRD PARTY LIBRARY IMPORTS
+from firebase_admin import firestore
 
 # LOCAL LIBRARY IMPORTS
 from utils.token_metadata import TokenMetadata
-
-...
-
-# Initialize firebase before continuing if not created already
-if not _DEFAULT_APP_NAME in _apps:
-    CREDENTIALS = credentials.Certificate(environ["FIRESTORE_TOKEN"])
-    initialize_app(CREDENTIALS)
+from utils.logger import AppLogger
+from utils.redis_client import RedisClient, KeyExpiredError, KeyDoesNotExistError
+from utils.environment import Environment, EnvironmentVariableKeys
 
 Token: TypeAlias = str
 
 
 class TokenHandler:
-    # TODO: Create app config file
-    token_duration: Final[int] = 3600
+    """
+    TokenHandler class to handle token creation and validation
+    """
 
     def __init__(self) -> None:
-        self.tokens: Dict[Token, TokenMetadata] = {}
+        self._redis_client: RedisClient = RedisClient()
 
     # PROPERTIES START HERE
     # PROPERTIES END HERE
@@ -55,70 +40,101 @@ class TokenHandler:
     def create_and_register_token(
         self, username: str, password: str, temporary=True
     ) -> Token:
+        """
+        Create and register a token for the user
+        """
         if not self._validate_user(username, password):
             raise ValueError("Invalid username or password")
 
-        return self._generate_and_register_token(username)
+        return self._generate_and_register_token(username, temporary)
 
     def validate_token(self, username: str, token: Token) -> dict:
-        if not token in self.tokens:
+        """
+        Validate the token for the user
+        """
+
+        token_key = self._get_token_key(username)
+
+        try:
+            token_metadata: TokenMetadata = self._redis_client.get(token_key)
+
+            if token_metadata["token"] != token:
+                return {"ErrorCode": 1, "ErrorMessage": "Invalid Token"}
+        except KeyDoesNotExistError:
             return {"ErrorCode": 1, "ErrorMessage": "Invalid Token"}
-
-        token_metadata: Final[TokenMetadata] = self.tokens[token]
-
-        if not token_metadata["token_owner"] == username:
-            return {"ErrorCode": 1, "ErrorString": "Invalid Token"}
-
-        current_time: Final[datetime] = datetime.now()
-
-        if current_time > token_metadata["expires_on"]:
-            del self.tokens[token]
-
+        except KeyExpiredError:
             return {"ErrorCode": 2, "ErrorString": "Token Expired"}
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().error("ErrorWhileValidatingToken", e)
+            return {"ErrorCode": 3, "ErrorString": "Server Uncaught Exception"}
 
         return {"ErrorCode": 0, "ErrorString": "Successfully Validated"}
 
     # PUBLIC METHODS END HERE
 
     # PRIVATE METHODS START HERE
-    def _generate_and_register_token(self, username: str) -> Token:
-        token: Token = None
-        valid_token: bool = False
+    def _generate_and_register_token(self, username: str, temporary: bool) -> Token:
+        token: Token = self._generate_token()
 
-        # Generate till we obtain a unique token
-        while not valid_token:
-            uuid: int = uuid4()
-            token: Token = sha256(str(uuid).encode("UTF-8")).hexdigest()
+        token_key: str = self._get_token_key(username)
 
-            if not token in self.tokens.keys():
-                valid_token = True
-
-        created_on: datetime = datetime.now()
-        expires_on: datetime = created_on + timedelta(seconds=self.token_duration)
+        try:
+            token_metadata: TokenMetadata = self._redis_client.get(token_key)
+            AppLogger.get_logger().info(
+                "Token already exists for the user %s", username
+            )
+            return token_metadata["token"]
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().info(
+                "No valid registered key for the user %s. Generating new key with exception:  %s",
+                username,
+                e,
+            )
 
         metadata: TokenMetadata = TokenMetadata(
-            {
-                "token_owner": username,
-                "created_on": created_on,
-                "expires_on": expires_on,
-            }
+            {"token_owner": username, "token": token}
         )
 
-        # Register token
-        self.tokens[token] = metadata
+        try:
+            self._redis_client.save(token_key, metadata, 30 if temporary else -1)
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().error("ErrorWhileSavingToken", e)
+            return ""
+
+        AppLogger.get_logger().info(
+            "Registered key new for the user %s",
+            username,
+        )
+
         return token
 
     def _validate_user(self, username: str, password: str) -> bool:
         firestore_client = firestore.client()
-        users_ref = firestore_client.collection(environ["FIRESTORE_SERVER"])
+        users_ref = firestore_client.collection(
+            Environment.get_environment_variable(
+                EnvironmentVariableKeys.FIRESTORE_SERVER
+            )
+        )
+        doc_id = Environment.get_environment_variable(
+            EnvironmentVariableKeys.FIRESTORE_DOC_ID
+        )
 
-        token = users_ref.document(environ["FIRESTORE_DOC_ID"]).get().to_dict()
+        token = users_ref.document(doc_id).get().to_dict()
         if (username and username == token["username"]) and (
             password and password == token["password"]
         ):
             return True
 
         return False
+
+    def _generate_token(self) -> Token:
+        uuid: int = uuid4()
+        token: Token = sha256(str(uuid).encode("UTF-8")).hexdigest()
+
+        return token
+
+    def _get_token_key(self, username: str) -> str:
+        return f"token_granter_token_{username}"
 
     # PRIVATE METHODS END HERE
 
