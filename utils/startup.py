@@ -9,7 +9,7 @@ Edit Log:
 """
 
 # STANDARD LIBRARY IMPORTS
-from os import environ
+from pathlib import Path
 
 # THIRD PARTY LIBRARY IMPORTS
 from dotenv import load_dotenv
@@ -22,6 +22,7 @@ from firebase_admin import (
 )
 
 # LOCAL LIBRARY IMPORTS
+from utils.environment import Environment, EnvironmentVariableKeys
 
 
 def startup_tasks() -> None:
@@ -29,7 +30,15 @@ def startup_tasks() -> None:
     Function to run all startup tasks
     """
 
-    load_dotenv()
+    app_path: Path = Path(__file__).resolve().parents[1]
+    env_path = app_path
+    load_dotenv(dotenv_path=env_path)
 
     if _DEFAULT_APP_NAME not in _apps:
-        initialize_app(credentials.Certificate(environ["FIRESTORE_TOKEN"]))
+        initialize_app(
+            credentials.Certificate(
+                Environment.get_environment_variable(
+                    EnvironmentVariableKeys.FIRESTORE_TOKEN
+                )
+            )
+        )

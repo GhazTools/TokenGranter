@@ -10,7 +10,6 @@ Edit Log:
 
 # STANDARD LIBRARY IMPORTS
 from hashlib import sha256
-from os import environ
 from typing import TypeAlias
 from uuid import uuid4
 
@@ -21,6 +20,7 @@ from firebase_admin import firestore
 from utils.token_metadata import TokenMetadata
 from utils.logger import AppLogger
 from utils.redis_client import RedisClient, KeyExpiredError, KeyDoesNotExistError
+from utils.environment import Environment, EnvironmentVariableKeys
 
 Token: TypeAlias = str
 
@@ -80,6 +80,9 @@ class TokenHandler:
 
         try:
             token_metadata: TokenMetadata = self._redis_client.get(token_key)
+            AppLogger.get_logger().info(
+                "Token already exists for the user %s", username
+            )
             return token_metadata["token"]
         except Exception as e:  # pylint: disable=broad-except
             AppLogger.get_logger().info(
@@ -92,14 +95,31 @@ class TokenHandler:
             {"token_owner": username, "token": token}
         )
 
-        self._redis_client.save(token_key, metadata, 30 if temporary else None)
+        try:
+            self._redis_client.save(token_key, metadata, 30 if temporary else -1)
+        except Exception as e:  # pylint: disable=broad-except
+            AppLogger.get_logger().error("ErrorWhileSavingToken", e)
+            return ""
+
+        AppLogger.get_logger().info(
+            "Registered key new for the user %s",
+            username,
+        )
+
         return token
 
     def _validate_user(self, username: str, password: str) -> bool:
         firestore_client = firestore.client()
-        users_ref = firestore_client.collection(environ["FIRESTORE_SERVER"])
+        users_ref = firestore_client.collection(
+            Environment.get_environment_variable(
+                EnvironmentVariableKeys.FIRESTORE_SERVER
+            )
+        )
+        doc_id = Environment.get_environment_variable(
+            EnvironmentVariableKeys.FIRESTORE_DOC_ID
+        )
 
-        token = users_ref.document(environ["FIRESTORE_DOC_ID"]).get().to_dict()
+        token = users_ref.document(doc_id).get().to_dict()
         if (username and username == token["username"]) and (
             password and password == token["password"]
         ):

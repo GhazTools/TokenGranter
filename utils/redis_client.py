@@ -9,7 +9,6 @@ Edit Log:
 """
 
 # STANDARD LIBRARY IMPORTS
-from os import getenv
 from pickle import loads, dumps
 from typing import List, Any
 from enum import Enum
@@ -18,6 +17,7 @@ from enum import Enum
 from redis import Redis, ConnectionPool
 
 # LOCAL LIBRARY IMPORTS
+from utils.environment import Environment, EnvironmentVariableKeys
 
 
 class KeyExpiredError(Exception):
@@ -76,15 +76,27 @@ class RedisClient:
         # https://github.com/redis/redis-py/issues/809
 
         self._connection_pool_native: ConnectionPool = ConnectionPool(
-            host=getenv("REDIS_HOST"),
-            port=getenv("REDIS_PORT"),
-            password=getenv("REDIS_PASSWORD"),
+            host=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_HOST
+            ),
+            port=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_PORT
+            ),
+            password=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_PASSWORD
+            ),
             decode_responses=True,
         )
         self._connection_pool_pickle: ConnectionPool = ConnectionPool(
-            host=getenv("REDIS_HOST"),
-            port=getenv("REDIS_PORT"),
-            password=getenv("REDIS_PASSWORD"),
+            host=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_HOST
+            ),
+            port=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_PORT
+            ),
+            password=Environment.get_environment_variable(
+                EnvironmentVariableKeys.REDIS_PASSWORD
+            ),
             decode_responses=False,
         )
 
@@ -111,9 +123,7 @@ class RedisClient:
     ) -> None:
         pass
 
-    def save(
-        self, key: str, value: SaveValueType, expiration_time: int | None = None
-    ) -> bool:
+    def save(self, key: str, value: SaveValueType, expiration_time: int = -1) -> bool:
         """
         Saves a key to the redis connection.
 
@@ -132,6 +142,7 @@ class RedisClient:
         if isinstance(value, (dict, list)):
             save_value = dumps(value)
             save_type = SaveType.PICKLE
+
             self.pickle_connection.set(key, save_value)
 
         else:
@@ -141,21 +152,17 @@ class RedisClient:
         # used internally to convert to the correct value type
 
         self.connection.set(self._get_type_key(key), save_type_str)
-        self.connection.set(self._get_expiration_key(key), save_type_str)
 
         expiration_key: str = self._get_expiration_key(key)
 
-        self.connection.set(
-            expiration_key,
-            value=(
-                ExpirationType.PERMANENT.value
-                if not expiration_time
-                else ExpirationType.TEMPORARY.value
-            ),
-        )
-
-        if expiration_time:
-            self.connection.expire(expiration_key, expiration_time)
+        if expiration_time == -1:
+            self.connection.set(
+                expiration_key,
+                value=(ExpirationType.TEMPORARY.value),
+                px=expiration_time,
+            )
+        else:
+            self.connection.set(expiration_key, value=(ExpirationType.PERMANENT.value))
 
         return True
 
