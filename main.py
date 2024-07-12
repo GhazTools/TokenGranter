@@ -12,6 +12,8 @@ Edit Log:
 
 # THIRD PARTY LIBRARY IMPORTS
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # LOCAL LIBRARY IMPORTS
 from utils.startup import startup_tasks
@@ -21,3 +23,11 @@ startup_tasks()
 
 app = FastAPI(dependencies=[])
 app.include_router(token_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*",], 
+    allow_credentials=True,  
+    allow_methods=["GET", "POST"],  
+    allow_headers=["X-Requested-With", "Content-Type", "Authorization"], 
+)
